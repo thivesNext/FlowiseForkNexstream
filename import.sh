@@ -30,9 +30,13 @@ else
 fi
 
 # 4. Recreate containers with any updated compose or code
-echo "Tearing down existing containers..."
+COMPOSE_DIR="${WORKDIR}/docker"                                   # where your compose file lives
+COMPOSE_FILE="docker-compose.yml"
+echo "Tearing down existing containers (using ${COMPOSE_DIR}/${COMPOSE_FILE})..."
+cd "${COMPOSE_DIR}"
 docker compose down
+
 echo "Bringing up containers..."
 docker compose up -d
 
-echo "Import complete. Flowise should now be running with restored data."
+echo "Import complete. Flowise should now be running (compose file: ${COMPOSE_DIR}/${COMPOSE_FILE})."
