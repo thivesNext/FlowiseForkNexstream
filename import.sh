@@ -34,9 +34,9 @@ COMPOSE_DIR="${WORKDIR}/docker"                                   # where your c
 COMPOSE_FILE="docker-compose.yml"
 echo "Tearing down existing containers (using ${COMPOSE_DIR}/${COMPOSE_FILE})..."
 cd "${COMPOSE_DIR}"
-docker compose down
+docker-compose down
 
 echo "Bringing up containers..."
-docker compose up -d
+docker-compose up -d
 
 echo "Import complete. Flowise should now be running (compose file: ${COMPOSE_DIR}/${COMPOSE_FILE})."
