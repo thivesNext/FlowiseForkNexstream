@@ -2,51 +2,48 @@
 set -euo pipefail
 
 # 1. Variables — adjust these
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"               # project root
 REMOTE_REPO="git@github.com:thivesNext/FlowiseForkNexstream.git"
 BRANCH="main"
 
-# 2. Ensure you’re in your project folder
+# snapshot name with timestamp
+TIMESTAMP="$(date +'%Y%m%d_%H%M%S')"
+VOLUME_SNAPSHOT="flowise_data_${TIMESTAMP}.tar.gz"
+VOLUME_SRC="${HOME}/.flowise"
+
+# 2. Go to the project folder
 cd "${REPO_DIR}"
 
-# 3. Add any new or changed files (docker-compose, .env, flows, etc.)
+# 3. Stage code & config changes
 git add .
 
-# 4. Commit with a timestamped message
-git commit -m "Deploy update: $(date +'%Y-%m-%d %H:%M:%S')"
+# 4. Commit code changes (no-op if nothing to commit)
+git commit -m "Deploy update: ${TIMESTAMP}" || echo "No code changes to commit."
 
-# 5. Push to remote
-git push "${REMOTE_REPO}" "${BRANCH}"
-if [ $? -eq 0 ]; then
-    echo "Changes pushed to ${REMOTE_REPO} on branch ${BRANCH}."
+# 5. Push code to remote
+if git push "${REMOTE_REPO}" "${BRANCH}"; then
+  echo "Code pushed to ${REMOTE_REPO} ${BRANCH}"
 else
-    echo "Failed to push changes. Please check your git configuration."
-    exit 1
+  echo "Failed to push code. Aborting."
+  exit 1
 fi
 
-# 6. Snapshot the Flowise data volume
-VOLUME_SNAPSHOT="flowise_data_$(date +'%Y%m%d_%H%M%S').tar.gz"
-VOLUME_SRC="$HOME/.flowise"
+# 6. Always create (or update) the data snapshot
+echo "Creating snapshot of ${VOLUME_SRC}..."
+# Ensure the snapshot goes into the repo directory
+tar czf "${REPO_DIR}/${VOLUME_SNAPSHOT}" -C "${HOME}" ".flowise"
 
-if [ -d "${VOLUME_SRC}" ]; then
-  echo "Archiving Flowise data directory (${VOLUME_SRC}) to ${VOLUME_SNAPSHOT}..."
-  tar czf "${VOLUME_SNAPSHOT}" -C "$(dirname "${VOLUME_SRC}")" "$(basename "${VOLUME_SRC}")"
-  mv "${VOLUME_SNAPSHOT}" "${REPO_DIR}/"
+# 7. Stage and commit the new snapshot
+cd "${REPO_DIR}"
+git add "${VOLUME_SNAPSHOT}"
+git commit -m "Add data snapshot: ${VOLUME_SNAPSHOT}" || echo "No changes in data snapshot."
 
-  # 7. Commit the snapshot tarball
-  cd "${REPO_DIR}"
-  git add "${VOLUME_SNAPSHOT}"
-  git commit -m "Add data snapshot: ${VOLUME_SNAPSHOT}"
-  if git push "${REMOTE_REPO}" "${BRANCH}"; then
-    echo "Volume snapshot pushed successfully."
-  else
-    echo "Failed to push volume snapshot. Please check your git configuration."
-    exit 1
-  fi
+# 8. Push the snapshot
+if git push "${REMOTE_REPO}" "${BRANCH}"; then
+  echo "Data snapshot pushed: ${VOLUME_SNAPSHOT}"
 else
-  echo "Warning: Flowise data directory ${VOLUME_SRC} not found; skipping snapshot."
+  echo "Failed to push data snapshot."
+  exit 1
 fi
 
 echo "Export complete."
-#chmod +x export_to_git.sh
-
