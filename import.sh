@@ -16,9 +16,10 @@ else
   cd "${WORKDIR}"
 fi
 
+
 # 3. Restore Flowise data snapshot (if present)
-SNAPSHOT_FILE=$(ls -1t flowise_data_*.tar.gz 2>/dev/null | head -n1 || true)
-if [ -n "${SNAPSHOT_FILE}" ]; then
+SNAPSHOT_FILE="flowise_data_latest.tar.gz"
+if [ -f "${SNAPSHOT_FILE}" ]; then
   echo "Found data snapshot: ${SNAPSHOT_FILE}"
   echo "Purging old ~/.flowise directory..."
   rm -rf ~/.flowise
@@ -26,12 +27,12 @@ if [ -n "${SNAPSHOT_FILE}" ]; then
   tar xzf "${SNAPSHOT_FILE}" -C "$HOME"
   echo "Data restored."
 else
-  echo "No snapshot file found (pattern flowise_data_*.tar.gz); skipping data restore."
+  echo "No snapshot file found (${SNAPSHOT_FILE}); skipping data restore."
 fi
 
 # 3b. Restore Postgres Docker volume (if present)
-PG_SNAPSHOT_FILE=$(ls -1t pgdata_*.tar.gz 2>/dev/null | head -n1 || true)
-if [ -n "${PG_SNAPSHOT_FILE}" ]; then
+PG_SNAPSHOT_FILE="pgdata_latest.tar.gz"
+if [ -f "${PG_SNAPSHOT_FILE}" ]; then
   echo "Found Postgres data snapshot: ${PG_SNAPSHOT_FILE}"
   echo "Restoring to Docker volume 'pgdata'..."
   docker volume create pgdata >/dev/null 2>&1 || true
@@ -39,7 +40,7 @@ if [ -n "${PG_SNAPSHOT_FILE}" ]; then
     sh -c "rm -rf /volume/* && tar xzf /backup/${PG_SNAPSHOT_FILE} -C /volume"
   echo "Postgres data restored."
 else
-  echo "No Postgres snapshot file found (pattern pgdata_*.tar.gz); skipping Postgres data restore."
+  echo "No Postgres snapshot file found (${PG_SNAPSHOT_FILE}); skipping Postgres data restore."
 fi
 
 # 4. Recreate containers with any updated compose or code

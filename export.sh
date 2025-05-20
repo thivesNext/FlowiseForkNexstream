@@ -8,7 +8,10 @@ BRANCH="main"
 
 # snapshot name with timestamp
 TIMESTAMP="$(date +'%Y%m%d_%H%M%S')"
-VOLUME_SNAPSHOT="flowise_data_${TIMESTAMP}.tar.gz"
+
+# Fixed snapshot file names
+VOLUME_SNAPSHOT="flowise_data_latest.tar.gz"
+PGVOLUME_SNAPSHOT="pgdata_latest.tar.gz"
 VOLUME_SRC="${HOME}/.flowise"
 
 # 2. Go to the project folder
@@ -28,24 +31,21 @@ else
   exit 1
 fi
 
-# 6. Always create (or update) the data snapshot
+
+# 6. Always create (or update) the data snapshot (Flowise config)
 echo "Creating snapshot of ${VOLUME_SRC}..."
-# Ensure the snapshot goes into the repo directory
 tar czf "${REPO_DIR}/${VOLUME_SNAPSHOT}" -C "${HOME}" ".flowise"
 
-# 6b. Create a snapshot of the Postgres Docker volume
-PGVOLUME_SNAPSHOT="pgdata_${TIMESTAMP}.tar.gz"
+# 6b. Create a snapshot of the Postgres Docker volume (overwrite each time)
+echo "Creating snapshot of Postgres Docker volume (pgdata)..."
 docker run --rm -v pgdata:/volume -v "${REPO_DIR}":/backup alpine \
-  tar czf "/backup/${PGVOLUME_SNAPSHOT}" -C /volume . 
+  sh -c "rm -f /backup/${PGVOLUME_SNAPSHOT} && tar czf /backup/${PGVOLUME_SNAPSHOT} -C /volume ."
 
-# 7. Stage and commit the new snapshot
+
+# 7. Stage and commit the new snapshots
 cd "${REPO_DIR}"
-git add "${VOLUME_SNAPSHOT}"
-git commit -m "Add data snapshot: ${VOLUME_SNAPSHOT}" || echo "No changes in data snapshot."
-
-# 7b. Stage and commit the new Postgres snapshot
-git add "${PGVOLUME_SNAPSHOT}"
-git commit -m "Add pgdata snapshot: ${PGVOLUME_SNAPSHOT}" || echo "No changes in pgdata snapshot."
+git add "${VOLUME_SNAPSHOT}" "${PGVOLUME_SNAPSHOT}"
+git commit -m "Add latest data and pgdata snapshots" || echo "No changes in snapshots."
 
 # 8. Push the snapshot
 if git push "${REMOTE_REPO}" "${BRANCH}"; then
