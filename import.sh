@@ -17,7 +17,16 @@ else
 fi
 
 
-# 3. Restore Flowise data snapshot (if present)
+
+# 3. Stop containers before restoring data
+COMPOSE_DIR="${WORKDIR}/docker"                                   # where your compose file lives
+COMPOSE_FILE="docker-compose.yml"
+echo "Tearing down existing containers (using ${COMPOSE_DIR}/${COMPOSE_FILE})..."
+cd "${COMPOSE_DIR}"
+docker-compose down
+cd "${WORKDIR}"
+
+# 4. Restore Flowise data snapshot (if present)
 SNAPSHOT_FILE="flowise_data_latest.tar.gz"
 if [ -f "${SNAPSHOT_FILE}" ]; then
   echo "Found data snapshot: ${SNAPSHOT_FILE}"
@@ -30,7 +39,7 @@ else
   echo "No snapshot file found (${SNAPSHOT_FILE}); skipping data restore."
 fi
 
-# 3b. Restore Postgres Docker volume (if present)
+# 5. Restore Postgres Docker volume (if present)
 PG_SNAPSHOT_FILE="pgdata_latest.tar.gz"
 if [ -f "${PG_SNAPSHOT_FILE}" ]; then
   echo "Found Postgres data snapshot: ${PG_SNAPSHOT_FILE}"
@@ -39,17 +48,14 @@ if [ -f "${PG_SNAPSHOT_FILE}" ]; then
   docker run --rm -v pgdata:/volume -v "${WORKDIR}":/backup alpine \
     sh -c "rm -rf /volume/* && tar xzf /backup/${PG_SNAPSHOT_FILE} -C /volume"
   echo "Postgres data restored."
+  echo "Listing contents of pgdata volume after restore:"
+  docker run --rm -v pgdata:/volume alpine ls -l /volume
 else
   echo "No Postgres snapshot file found (${PG_SNAPSHOT_FILE}); skipping Postgres data restore."
 fi
 
-# 4. Recreate containers with any updated compose or code
-COMPOSE_DIR="${WORKDIR}/docker"                                   # where your compose file lives
-COMPOSE_FILE="docker-compose.yml"
-echo "Tearing down existing containers (using ${COMPOSE_DIR}/${COMPOSE_FILE})..."
+# 6. Start containers again
 cd "${COMPOSE_DIR}"
-docker-compose down
-
 echo "Bringing up containers..."
 docker-compose up -d
 
