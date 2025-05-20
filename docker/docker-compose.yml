@@ -1,6 +1,28 @@
+
 version: '3.1'
 
+
 services:
+    postgres:
+        image: ankane/pgvector
+        restart: always
+        environment:
+            POSTGRES_DB: flowise
+            POSTGRES_USER: flowise
+            POSTGRES_PASSWORD: flowise
+        ports:
+            - "5432:5432"
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        networks:
+            - flowise-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U flowise"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
+
     flowise:
         image: flowiseai/flowise
         restart: always
@@ -12,15 +34,14 @@ services:
             - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
             - FLOWISE_FILE_SIZE_LIMIT=${FLOWISE_FILE_SIZE_LIMIT}
             - DEBUG=${DEBUG}
-            - DATABASE_PATH=${DATABASE_PATH}
-            - DATABASE_TYPE=${DATABASE_TYPE}
-            - DATABASE_PORT=${DATABASE_PORT}
-            - DATABASE_HOST=${DATABASE_HOST}
-            - DATABASE_NAME=${DATABASE_NAME}
-            - DATABASE_USER=${DATABASE_USER}
-            - DATABASE_PASSWORD=${DATABASE_PASSWORD}
-            - DATABASE_SSL=${DATABASE_SSL}
-            - DATABASE_SSL_KEY_BASE64=${DATABASE_SSL_KEY_BASE64}
+            - DATABASE_TYPE=postgres
+            - DATABASE_HOST=postgres
+            - DATABASE_PORT=5432
+            - DATABASE_NAME=flowise
+            - DATABASE_USER=flowise
+            - DATABASE_PASSWORD=flowise
+            - DATABASE_SSL=false
+            - DATABASE_SSL_KEY_BASE64=
             - APIKEY_STORAGE_TYPE=${APIKEY_STORAGE_TYPE}
             - APIKEY_PATH=${APIKEY_PATH}
             - SECRETKEY_PATH=${SECRETKEY_PATH}
@@ -61,3 +82,14 @@ services:
         volumes:
             - ~/.flowise:/root/.flowise
         entrypoint: /bin/sh -c "sleep 3; flowise start"
+        depends_on:
+            postgres:
+                condition: service_healthy
+        networks:
+            - flowise-network
+volumes:
+    pgdata:
+
+networks:
+    flowise-network:
+        driver: bridge
