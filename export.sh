@@ -33,10 +33,19 @@ echo "Creating snapshot of ${VOLUME_SRC}..."
 # Ensure the snapshot goes into the repo directory
 tar czf "${REPO_DIR}/${VOLUME_SNAPSHOT}" -C "${HOME}" ".flowise"
 
+# 6b. Create a snapshot of the Postgres Docker volume
+PGVOLUME_SNAPSHOT="pgdata_${TIMESTAMP}.tar.gz"
+docker run --rm -v pgdata:/volume -v "${REPO_DIR}":/backup alpine \
+  tar czf "/backup/${PGVOLUME_SNAPSHOT}" -C /volume . 
+
 # 7. Stage and commit the new snapshot
 cd "${REPO_DIR}"
 git add "${VOLUME_SNAPSHOT}"
 git commit -m "Add data snapshot: ${VOLUME_SNAPSHOT}" || echo "No changes in data snapshot."
+
+# 7b. Stage and commit the new Postgres snapshot
+git add "${PGVOLUME_SNAPSHOT}"
+git commit -m "Add pgdata snapshot: ${PGVOLUME_SNAPSHOT}" || echo "No changes in pgdata snapshot."
 
 # 8. Push the snapshot
 if git push "${REMOTE_REPO}" "${BRANCH}"; then

@@ -29,6 +29,19 @@ else
   echo "No snapshot file found (pattern flowise_data_*.tar.gz); skipping data restore."
 fi
 
+# 3b. Restore Postgres Docker volume (if present)
+PG_SNAPSHOT_FILE=$(ls -1t pgdata_*.tar.gz 2>/dev/null | head -n1 || true)
+if [ -n "${PG_SNAPSHOT_FILE}" ]; then
+  echo "Found Postgres data snapshot: ${PG_SNAPSHOT_FILE}"
+  echo "Restoring to Docker volume 'pgdata'..."
+  docker volume create pgdata >/dev/null 2>&1 || true
+  docker run --rm -v pgdata:/volume -v "${WORKDIR}":/backup alpine \
+    sh -c "rm -rf /volume/* && tar xzf /backup/${PG_SNAPSHOT_FILE} -C /volume"
+  echo "Postgres data restored."
+else
+  echo "No Postgres snapshot file found (pattern pgdata_*.tar.gz); skipping Postgres data restore."
+fi
+
 # 4. Recreate containers with any updated compose or code
 COMPOSE_DIR="${WORKDIR}/docker"                                   # where your compose file lives
 COMPOSE_FILE="docker-compose.yml"
